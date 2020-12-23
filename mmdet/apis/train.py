@@ -8,8 +8,7 @@ from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 
 from mmdet.core import (DistOptimizerHook, DistEvalmAPHook,
                         CocoDistEvalRecallHook, CocoDistEvalmAPHook,
-                        CocoDistEvalmAPHookRGB, CocoDistEvalmAPHookRGB2, CocoDistEvalmAPHook3D, CocoDistEvalmAPHook3DMult,
-                        CocoDistEvalmAPHook3DParcel)
+                        CocoDistEvalmAPHook3D)
 from mmdet.datasets import build_dataloader
 from mmdet.models import RPN
 from .env import get_root_logger

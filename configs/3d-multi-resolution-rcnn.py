@@ -140,7 +140,8 @@ test_cfg = dict(
         score_thr=0.2,
         nms=dict(type='nms', iou_thr=0.5),
         max_per_img=2000,
-        mask_thr_binary=0.25))
+        mask_thr_binary=0.25),
+    return_bbox_only=True)
 data_root = 'data/Stroke_v4/COCO-full-vol/'
 data_root_2 = 'data/Stroke_v4-14TB/COCO-full-vol-1dot5x/'
 img_norm_cfg = dict(

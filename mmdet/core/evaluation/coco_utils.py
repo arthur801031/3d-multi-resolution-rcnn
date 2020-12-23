@@ -46,12 +46,6 @@ def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000), slice_
                     final_results[img_id] = cocoEval.eval['saved']
                     del cocoEval
                 cocoEval = COCOeval(coco, coco_dets, iou_type, is3D=True)
-                # save final_results in case cocoeval has a bug
-                with open('./accum_masks.pkl', 'wb') as f:
-                    pickle.dump(final_results, f, pickle.HIGHEST_PROTOCOL)
-                # load saved masks.pkl if something bad happens during evaluation
-                # with open('./accum_masks.pkl', 'rb') as f:
-                #     final_results = pickle.load(f)
                 cocoEval.accumulate_all(final_results)
                 cocoEval.summarize()
 
@@ -73,87 +67,13 @@ def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000), slice_
             else:
                 cocoEval = COCOeval(coco, coco_dets, iou_type)
 
-            
-            ############## output each patient's individual result for each brain region #############
-            brain_regions_names = [
-                'Caudate',
-                'Putamen',
-                'Pallidum',
-                'Thalamus',
-                'Corpus_Callosum',
-                'Sub_Lobar',
-                'Parietal',
-                'Frontal',
-                'Frontal_Temporal',
-                'Limbic',
-                'Occipital',
-                'Temporal',
-                'Cerebellum',
-                'Brainstem',
-            ]
-
-            target_filenames = [
-                'A001-23230277_instance_v1.npy',
-                'A012-1_instance_v1.npy',
-                'A025-1_instance_v1.npy',
-                'A041-1_instance_v2.npy'
-            ]
-            # use the above information to determine cur_brain_region id
-            for cur_brain_region in range(len(brain_regions_names)):
-                del cocoEval
-                for filename, img_id in full_filename_to_id.items():
-                    if filename not in target_filenames:
-                        continue
-                    print(filename, ' ', img_id)
-                    print('Number of ground truths: ', len(coco.getAnnIds(imgIds=[img_id])))
-                    # only process coco_dets in particular brain region
-                    regions_final_result = brain_regions_filter_results(result_file, img_id, filename, cur_brain_region)
-                    if len(regions_final_result) == 0:
-                        if len(coco.getAnnIds(imgIds=[img_id])) == 0:
-                            # 100% AP
-                            print('Both ground truth and predicted bounding box are 0. Hence, Average Precision=100%')
-                        else:
-                            # All lesions are missdetected
-                            print('0 Predicted bounding box but ground truth has at least one bounding box. Hence, Average Precision=0%')
-                        continue
-                    else:
-                        if len(coco.getAnnIds(imgIds=[img_id])) == 0:
-                            # N/A AP False positive
-                            print('No ground truth in this brain region. Number of false positive: ', len(regions_final_result))
-                        coco_dets_brain_region = coco.loadRes3D(regions_final_result)
-                    cocoEval = COCOeval(coco, coco_dets_brain_region, iou_type, is3D=True)
-                    # cocoEval = COCOeval(coco, coco_dets, iou_type, is3D=True) # original code
-                    cocoEval.params.imgIds = [img_id]
-                    cocoEval.evaluate(target_id=img_id)
-                    cocoEval.accumulate()
-                    cocoEval.summarize()
-                    del cocoEval
-
-            ############# output each patient's individual result #############
-            # del cocoEval
-            # for filename, img_id in full_filename_to_id.items():
-            #     print(filename, ' ', img_id)
-            #     cocoEval = COCOeval(coco, coco_dets, iou_type, is3D=True)
-            #     cocoEval.params.imgIds = [img_id]
-            #     cocoEval.evaluate(target_id=img_id)
-            #     cocoEval.accumulate()
-            #     cocoEval.summarize()
-            #     del cocoEval
-
-            ############## original implementation #############
-            # cocoEval.params.imgIds = img_ids
-            # if res_type == 'proposal':
-            #     cocoEval.params.useCats = 0
-            #     cocoEval.params.maxDets = list(max_dets)
-            # cocoEval.evaluate(slice_label=slice_label)
-            # cocoEval.accumulate()
-            # cocoEval.summarize()
-
-            # cocoEval.output_each_gt_best_results('intermediate-files/gt_best_1x.pickle') 
-            # cocoEval.output_each_gt_best_results('intermediate-files/gt_best_1dot5x.pickle')
-            # cocoEval.output_each_gt_best_results('intermediate-files/gt_best_1dot25x.pickle')
-            # cocoEval.output_each_gt_best_results('intermediate-files/gt_best_combined.pickle') 
-            # cocoEval.output_each_gt_best_results('intermediate-files/gt_best_combined-069.pickle') 
+            cocoEval.params.imgIds = img_ids
+            if res_type == 'proposal':
+                cocoEval.params.useCats = 0
+                cocoEval.params.maxDets = list(max_dets)
+            cocoEval.evaluate(slice_label=slice_label)
+            cocoEval.accumulate()
+            cocoEval.summarize()
 
 
 def fast_eval_recall(results,
@@ -502,8 +422,6 @@ def segm2json3D(dataset, results, full_filename_to_id):
         if isinstance(seg, str):
             # original implementation: loading/converting 128x128x160 patches 
             seg = np.load(seg)['data']
-            # new implementation: loading/converting potential CMB region
-            # seg = np.load(seg, allow_pickle=True)
             seg_from_file = True
 
         img_info = dataset.img_infos[idx]
@@ -542,15 +460,6 @@ def segm2json3D(dataset, results, full_filename_to_id):
                     data['segm_pos_back'] = pos_back
                     data['segm_pos_left'] = pos_left
                     data['segm_pos_right'] = pos_right
-
-                    # new implementation: loading/converting potential CMB region, which is
-                    # defined by bboxes[i]
-                    # data['segm_pos_left'] = int(round(bboxes[i][0]))
-                    # data['segm_pos_right'] = int(round(bboxes[i][2]))
-                    # data['segm_pos_top'] = int(round(bboxes[i][1]))
-                    # data['segm_pos_bottom'] = int(round(bboxes[i][3]))
-                    # data['segm_pos_front'] = int(round(bboxes[i][4]))
-                    # data['segm_pos_back'] = int(round(bboxes[i][5]))
 
                 data['bbox'] = xyxyzz2xywhzd(bboxes[i])
                 data['score'] = float(bboxes[i][6])

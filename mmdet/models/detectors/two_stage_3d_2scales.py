@@ -145,7 +145,6 @@ class TwoStageDetector3D2Scales(BaseDetector, RPNTestMixin, BBoxTestMixin,
                       gt_masks=None,
                       gt_masks_2=None,
                       proposals=None):
-        # self.print_iterations()
         assert imgs.shape[1] == 3 and imgs_2.shape[1] == 3 # make sure channel size is 3
         x = self.extract_feat(imgs)
         x_2 = self.extract_feat(imgs_2)
@@ -175,14 +174,6 @@ class TwoStageDetector3D2Scales(BaseDetector, RPNTestMixin, BBoxTestMixin,
 
             proposal_list, anchors = self.rpn_head.get_bboxes(*proposal_inputs)
             proposal_list_2, anchors_2 = self.rpn_head_2.get_bboxes(*proposal_inputs_2, img_meta_2=img_meta_2)
-            # self.rpn_head.visualize_anchor_boxes(imgs, rpn_outs[0], img_meta, slice_num=45, shuffle=True) # debug only
-            # self.visualize_proposals(imgs, proposal_list, gt_bboxes, img_meta, slice_num=None, isProposal=True) #debug only
-            # self.visualize_proposals(imgs, anchors, gt_bboxes, img_meta, slice_num=None, isProposal=False) #debug only
-            # self.visualize_gt_bboxes(imgs, gt_bboxes, img_meta) #debug only
-            # breakpoint()
-            # self.visualize_gt_bboxes(imgs_2, gt_bboxes_2, img_meta_2) #debug only
-            # breakpoint()
-            # self.visualize_gt_bboxes_masks(imgs, gt_bboxes, img_meta, gt_masks) # debug only
         else:
             proposal_list = proposals
 
@@ -335,7 +326,6 @@ class TwoStageDetector3D2Scales(BaseDetector, RPNTestMixin, BBoxTestMixin,
             loss_refinement_mask = self.refinement_mask_head.loss(mask_pred_refined, mask_targets_refined, pos_labels_refined, img_meta_refinement=True)
             losses.update(loss_refinement_mask)
 
-        # self.save_losses_plt(losses) #debug only...
         self.iteration += 1
         return losses
 
@@ -345,9 +335,6 @@ class TwoStageDetector3D2Scales(BaseDetector, RPNTestMixin, BBoxTestMixin,
     def simple_test(self, imgs, img_metas, imgs_2, img_metas_2, proposals=None, rescale=False, test_cfg2=None):
         """Test without augmentation."""
         assert self.with_bbox, "Bbox head must be implemented."
-        
-        return [[10, 10, 10, 10, 10, 10, 0.2]]
-
         if test_cfg2 is not None:
             test_cfg = test_cfg2
         else:
@@ -388,18 +375,10 @@ class TwoStageDetector3D2Scales(BaseDetector, RPNTestMixin, BBoxTestMixin,
         bbox_results = bbox2result3D(det_bboxes, det_labels,
                                         self.bbox_head.num_classes)
 
-        # TODO: Better way to handle returning bbox and/or segm 
-        return_bbox_only = True
-
-        if return_bbox_only:
+        # return bbox or (bbox and segm) 
+        if test_cfg.return_bbox_only:
             return bbox_results
         else:
-            segm_out_filepath = 'in_progress/segm_results_{}.npz'.format(self.iteration)
-            # file already exists skip generating segms
-            if path.exists(segm_out_filepath):
-                self.iteration += 1
-                return bbox_results, segm_out_filepath
-
             if self.refinement_mask_head:
                 # find out which detection box belongs to which resolution
                 det_bboxes_np = det_bboxes.cpu().numpy()
@@ -448,199 +427,8 @@ class TwoStageDetector3D2Scales(BaseDetector, RPNTestMixin, BBoxTestMixin,
                 for segm_results in segm_results_refinement[0]:
                     segm_results_nonscaled[0].append(segm_results)
 
-                # for processing full volume:
-                # return bbox_results, segm_results_nonscaled
-
-                # for processing patch: slow but maintains original performance
-                np.savez_compressed(segm_out_filepath, data=segm_results_nonscaled)
-                self.iteration += 1
-                return bbox_results, segm_out_filepath
-
-                # for processing patch: faster but may lose precision.
-                # segm_lesion_only = [[]]
-                # for bbox_result, segm_result in zip(bbox_results[0], segm_results_nonscaled[0]):
-                #     xmin, ymin, xmax, ymax, zmin, zmax, _ = bbox_result
-                #     xmin = int(round(xmin)); ymin = int(round(ymin)); xmax = int(round(xmax)); ymax = int(round(ymax))
-                #     zmin = int(round(zmin)); zmax = int(round(zmax))
-                #     if xmin == xmax:
-                #         xmax += 1
-                #     if ymin == ymax:
-                #         ymax += 1
-                #     if zmin == zmax:
-                #         zmax += 1
-                #     segm_lesion_only[0].append(segm_result[zmin:zmax:1, ymin:ymax:1, xmin:xmax:1])
+                return bbox_results, segm_results_nonscaled
             else:
                 segm_results = self.simple_test_mask(
                     x, img_metas, det_bboxes, det_labels, rescale=rescale)
                 return bbox_results, segm_results
-
-
-    
-    def check_bbox_segm_algin(self, bbox_result, segm_result):
-        '''Call self.check_bbox_segm_algin(bbox_result, segm_result) to check for correctness
-        '''
-        xmin, ymin, xmax, ymax, zmin, zmax, _ = bbox_result
-        xmin = int(round(xmin)); ymin = int(round(ymin)); xmax = int(round(xmax)); ymax = int(round(ymax))
-        zmin = int(round(zmin)); zmax = int(round(zmax))
-
-        f = plt.figure(1)
-        segm_sample = segm_result[zmin, :, :]
-        plt.imshow(segm_sample)
-        ax = plt.gca()
-        rect = pts.Rectangle((xmin, ymin), (xmax-xmin+1), (ymax-ymin+1), fill=False, edgecolor='red', linewidth=1)
-        ax.add_patch(rect)
-        f.savefig("tests/check_segm_bbox.png")
-
-        f = plt.figure(2)
-        plt.imshow(segm_sample[ymin:ymax+1:1, xmin:xmax+1:1])
-        f.savefig("tests/check_segm.png")
-        breakpoint()
-        print('')
-
-
-    def print_iterations(self):
-        out = open('output.json', 'a+')
-        out.write('\n\n\nEpoch/iteration: {}\n'.format(self.iteration))
-
-
-    def visualize_masks_bboxes(self, bbox_results, segm_results):
-        bbox_results = bbox_results[0]
-        segm_results = segm_results[0]
-        i = 1
-        for bbox, segm in zip(bbox_results, segm_results):
-            print('bbox: ', bbox)
-            exist_slices = []
-            for cur_slice in range(segm.shape[0]):
-                if len(np.unique(segm[cur_slice,:,:])) > 1:
-                    exist_slices.append(cur_slice)
-            assert int(bbox[4]) == exist_slices[0] and int(bbox[5]) == exist_slices[-1]
-
-            for cur_slice in exist_slices:
-                filename = 'tests/bbox {} slice {}.png'.format(i, cur_slice)
-                plt.figure()
-                plt.imshow(segm[cur_slice,:,:])
-                ax = plt.gca()
-                rect = pts.Rectangle((bbox[0], bbox[1]), bbox[2]-bbox[0], bbox[3]-bbox[1], fill=False, edgecolor='red', linewidth=2)
-                ax.add_patch(rect)
-                plt.savefig(filename)
-                plt.close()
-            i += 1
-        breakpoint()
-
-    def visualize_proposals(self, imgs, proposals, gt_bboxes, img_meta, slice_num, isProposal=True):
-        if slice_num is None:
-            img = tensor2img3D(imgs, slice_num=45)
-        else:
-            img = tensor2img3D(imgs, slice_num=slice_num)
-
-        batch_num = 0
-        for cur_proposals, cur_gt_bboxes, cur_img_meta in zip(proposals, gt_bboxes, img_meta):
-            bboxes = []
-            cur_proposals = cur_proposals.cpu().numpy()
-            for bbox in cur_proposals:
-                if slice_num is None:
-                    bboxes.append([bbox[0], bbox[1], bbox[2], bbox[3]])
-                elif slice_num is not None and slice_num >= math.floor(bbox[4]) and slice_num <= math.ceil(bbox[5]):
-                    # select bounding boxes on this slice
-                    bboxes.append([bbox[0], bbox[1], bbox[2], bbox[3]])
-            part_filename = 'prop' if isProposal else 'anch' 
-            filename = 'tests/iter_{}_img_id_{}_batch_{}_{}.png'.format(self.iteration, cur_img_meta['image_id'], batch_num, part_filename)
-            self.show_bboxes_gt_bboxes(img, np.array(bboxes), gt_bboxes=cur_gt_bboxes, out_file=filename)
-            batch_num += 1
-
-    def visualize_gt_bboxes(self, imgs, gt_bboxes, img_meta):
-        gt_bboxes_np = gt_bboxes[0].cpu().numpy()
-
-        for bbox in gt_bboxes_np:
-            for slice_num in range(int(bbox[4]), int(bbox[5])):
-                img = tensor2img3D(imgs, slice_num=slice_num)
-                filename = 'tests/iter_{}_img_id_{}_slice_{}.png'.format(self.iteration, img_meta[0]['image_id'], slice_num)
-                mmcv.imshow_bboxes(img, np.array([bbox]), show=False, out_file=filename)
-    
-    def visualize_gt_bboxes_masks(self, imgs, gt_bboxes, img_meta, gt_masks):
-        for num_img in range(len(gt_bboxes)):
-            gt_bboxes_np = gt_bboxes[num_img].cpu().numpy()
-            gt_masks_np = gt_masks[num_img].cpu().numpy()
-            bbox_num = 0
-            for bbox in gt_bboxes_np:
-                for slice_num in range(int(bbox[4]), int(bbox[5])):
-                    img = tensor2img3D(imgs, slice_num=slice_num)
-                    filename = 'tests/iter_{}_img_id_{}_bbox_num_{}_slice_{}.png'.format(self.iteration, img_meta[num_img]['image_id'], bbox_num, slice_num)
-                    filename_mask = 'tests/iter_{}_img_id_{}_bbox_num_{}_slice_{}_mask.png'.format(self.iteration, img_meta[num_img]['image_id'], bbox_num, slice_num)
-                    plt.figure()
-                    plt.imshow(img)
-                    plt.imshow(gt_masks_np[bbox_num, slice_num, :, :] * 255, alpha=0.3)
-                    plt.savefig(filename_mask)
-                    ax = plt.gca()
-                    rect = pts.Rectangle((bbox[0], bbox[1]), bbox[2]-bbox[0], bbox[3]-bbox[1], fill=False, edgecolor='red', linewidth=2)
-                    ax.add_patch(rect)
-                    plt.savefig(filename)
-                    plt.close()
-                bbox_num += 1
-        breakpoint()
-
-    def imwrite(self, img, file_path, params=None):
-        """Write image to file
-        """
-        return cv2.imwrite(file_path, img, params)
-
-    def show_bboxes_gt_bboxes(self, img,
-                    bboxes,
-                    gt_bboxes=None,
-                    colors=[(0, 255, 0), (0, 0, 255)],
-                    top_k=-1,
-                    thickness=1,
-                    show=True,
-                    out_file=None):
-        """Draw bboxes on an image.
-        """
-        if isinstance(bboxes, np.ndarray):
-            bboxes = [bboxes]
-
-        for i, _bboxes in enumerate(bboxes):
-            _bboxes = _bboxes.astype(np.int32)
-            if top_k <= 0:
-                _top_k = _bboxes.shape[0]
-            else:
-                _top_k = min(top_k, _bboxes.shape[0])
-            for j in range(_top_k):
-                left_top = (_bboxes[j, 0], _bboxes[j, 1])
-                right_bottom = (_bboxes[j, 2], _bboxes[j, 3])
-                cv2.rectangle(img, left_top, right_bottom, colors[0], thickness=thickness)
-        
-        if gt_bboxes is not None:
-            gt_bboxes = gt_bboxes.cpu().numpy()
-            if isinstance(gt_bboxes, np.ndarray):
-                gt_bboxes = [gt_bboxes]
-
-            # gt_bboxes
-            for i, gt_bboxes in enumerate(gt_bboxes):
-                _gt_bboxes = gt_bboxes.astype(np.int32)
-                if top_k <= 0:
-                    _top_k = _gt_bboxes.shape[0]
-                else:
-                    _top_k = min(top_k, _gt_bboxes.shape[0])
-                for j in range(_top_k):
-                    left_top = (_gt_bboxes[j, 0], _gt_bboxes[j, 1])
-                    right_bottom = (_gt_bboxes[j, 2], _gt_bboxes[j, 3])
-                    cv2.rectangle( img, left_top, right_bottom, colors[1], thickness=1)
-
-        self.imwrite(img, out_file)
-
-    def save_losses_plt(self, losses):
-        rpn_cls_loss = torch.sum(torch.stack(losses['loss_rpn_cls'])).item()
-        rpn_bbox_reg_loss = torch.sum(torch.stack(losses['loss_rpn_reg'])).item()
-        self.rpn_cls_losses.append(rpn_cls_loss)
-        self.rpn_bbox_reg_losses.append(rpn_bbox_reg_loss)
-        self.total_losses.append(rpn_cls_loss + rpn_bbox_reg_loss)
-        self.iterations.append(self.iteration)
-        plt.plot(self.iterations, self.rpn_cls_losses, color='skyblue', linewidth=1, label='rpn class loss')
-        plt.plot(self.iterations, self.rpn_bbox_reg_losses, color='olive', linewidth=1, label='rpn bbox reg loss')
-        plt.plot(self.iterations, self.total_losses, color='red', linewidth=1, label='rpn total loss')
-        if self.iteration == 1:
-            plt.legend(loc='upper right')
-        plt.savefig('tests/iter_{}_loss.png'.format(self.iteration))
-
-        # end of iteration: append new lines to output.json
-        # out = open('output.json', 'a+')
-        # out.write('\n\n')
