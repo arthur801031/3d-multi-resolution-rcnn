@@ -1,0 +1,33 @@
+addict==2.4.0
+certifi==2020.12.5
+chardet==4.0.0
+cycler==0.10.0
+Cython==0.29.21
+decorator==4.4.2
+idna==2.10
+imageio==2.9.0
+kiwisolver==1.3.1
+matplotlib==3.3.3
+mmcv==0.2.13
+# Editable install with no version control (mmdet==0.6.0+432c785)
+-e /home/arthurliu/miniconda/envs/rcnn/lib/python3.7/site-packages/mmdet-0.6.0+432c785-py3.7.egg
+networkx==2.5
+numpy==1.19.4
+opencv-python==4.4.0.46
+Pillow==8.0.1
+pycocotools==2.0.2
+pyparsing==2.4.7
+python-dateutil==2.8.1
+PyWavelets==1.1.1
+PyYAML==5.3.1
+requests==2.25.1
+scikit-image==0.18.0
+scipy==1.5.4
+six==1.15.0
+terminaltables==3.1.0
+tifffile==2020.12.8
+torch==1.0.1.post2
+torchvision==0.2.2
+tqdm==4.19.9
+urllib3==1.26.2
+yapf==0.30.0
