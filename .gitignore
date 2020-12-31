@@ -117,3 +117,4 @@ data/
 *.pth
 *.log
 *.log.json
+results.pkl.json

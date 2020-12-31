@@ -7,7 +7,7 @@ import torch
 import torch.distributed as dist
 from mmcv.runner import Hook, obj_from_dict
 from mmcv.parallel import scatter, collate
-from pycocotools.cocoeval import COCOeval
+from pycocotools_local.cocoeval import *
 from pycocotools_local.coco import *
 from torch.utils.data import Dataset
 
