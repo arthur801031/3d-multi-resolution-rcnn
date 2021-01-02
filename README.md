@@ -3,6 +3,12 @@
 
 Official PyTorch implementaiton of the paper "3D Instance Segmentation Framework for Cerebral Microbleeds using 3D Multi-Resolution R-CNN" by I-Chun Arthur Liu, Chien-Yao Wang, Jiun-Wei Chen, Wei-Chi Li, Feng-Chi Chang, Yi-Chung Lee, Yi-Chu Liao, Chih-Ping Chung, Hong-Yuan Mark Liao, Li-Fen Chen. Paper is currently under review.
 
+**Abstract from our paper:**
+Cerebral microbleeds (CMBs) are small-sized and round hypointense lesions. The volume ratio and the presence of CMBs are associated with an increased risk of cerebrovascular disease, cognitive impairment, and mortality. However, manually determining the number and volume of CMBs is an extremely time-consuming task due to many CMB mimics sharing CMB imaging characteristics. We present the first end-to-end 3D instance segmentation framework, 3D Multi-Resolution R-CNN, for CMBs using Susceptibility Weighted Imaging. We propose a multi-resolution approach to capture 3D spatial characteristics of CMBs. The proposed model substantially outperforms state-of-the-art models in terms of detection as well as instance segmentation, and especially it improves the segmentation performance of 3D Mask R-CNN by 39.8% at 0.5 intersection over union threshold via addressing the issues involved in detecting CMBs of various sizes.
+
+Keywords: 3D instance segmentation, 3D object detection, cerebral microbleeds, convolutional neural networks (CNNs), susceptibility weighted imaging (SWI), 3D Mask R-CNN, magnetic resonance imaging (MRI), medical imaging, pytorch.
+
+
 ## Usage Instructions
 
 ### Requirements
@@ -225,3 +231,5 @@ Refer to `test_images.py` for details.
     ]
 }
 ```
+
+This codebase is based on [OpenMMLab Detection Toolbox and Benchmark](https://github.com/open-mmlab/mmdetection).
