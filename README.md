@@ -43,7 +43,7 @@ conda env create --file conda.yml
 4. Install pip packages.
 
 ```shell
-pip install -r requirements
+pip install -r requirements.txt
 ```
 
 5. Compile cuda extensions.
